@@ -1,0 +1,72 @@
+{
+  "folders": [
+    {
+      "name": "Engine",
+      "path": "Lib/Engine",
+      "settings": {
+        // --- ENGINE INTERPRETER ---
+        "python.defaultInterpreterPath": "${workspaceFolder}/Lib/Engine/.venv/Scripts/python.exe",
+        // Linux/Mac alternative:
+        // "python.defaultInterpreterPath": "${workspaceFolder}/Lib/Engine/.venv/bin/python",
+
+        // --- ENGINE LINTING ---
+        "python.linting.enabled": true,
+        "python.linting.ruffEnabled": true,
+        "python.linting.ruffPath": "${workspaceFolder}/Lib/Engine/.venv/Scripts/ruff.exe",
+        // Linux/Mac:
+        // "python.linting.ruffPath": "${workspaceFolder}/Lib/Engine/.venv/bin/ruff",
+
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll": true,
+          "source.organizeImports": true
+        },
+
+        // --- ENGINE TESTING ---
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": ["tests"]
+      }
+    },
+    {
+      "name": "World",
+      "path": "World",
+      "settings": {
+        // --- WORLD INTERPRETER ---
+        "python.defaultInterpreterPath": "${workspaceFolder}/World/.venv/Scripts/python.exe",
+        // Linux/Mac:
+        // "python.defaultInterpreterPath": "${workspaceFolder}/World/.venv/bin/python",
+
+        // --- OPTIONAL WORLD LINTING ---
+        // Enable below ONLY if you install ruff in World/.venv.
+        "python.linting.enabled": true,
+        "python.linting.ruffEnabled": true,
+        "python.linting.ruffPath": "${workspaceFolder}/World/.venv/Scripts/ruff.exe",
+        // Linux/Mac:
+        // "python.linting.ruffPath": "${workspaceFolder}/World/.venv/bin/ruff",
+
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll": true,
+          "source.organizeImports": true
+        }
+      }
+    }
+  ],
+
+  // --- GLOBAL WORKSPACE SETTINGS ---
+  "settings": {
+    "files.exclude": {
+      "**/__pycache__": true,
+      "**/*.pyc": true,
+      "**/.pytest_cache": true
+    },
+
+    // Editor behavior
+    "python.languageServer": "Pylance",
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.autoImportCompletions": true,
+
+    // Important: ensures terminals activate correct venv
+    "python.terminal.activateEnvironment": true
+  }
+}

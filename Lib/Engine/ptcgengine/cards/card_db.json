@@ -1,0 +1,30 @@
+{
+  "TestMon": {
+    "name": "TestMon",
+    "supertype": "pokemon",
+    "hp": 100,
+    "types": ["normal"],
+    "attacks": [
+      {
+        "name": "Bonk",
+        "cost": ["C"],
+        "effect": {
+          "op": "deal_damage",
+          "args": {
+            "target": {
+              "op": "select",
+              "args": { "who": "opponent", "zone": "active" }
+            },
+            "amount": { "op": "const", "value": 20 }
+          }
+        }
+      }
+    ]
+  },
+  "LightningEnergy": {
+    "name": "Lightning Energy",
+    "supertype": "energy",
+    "subtype": "basic",
+    "energy_type": "L"
+  }
+}

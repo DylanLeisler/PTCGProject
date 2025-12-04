@@ -1,0 +1,72 @@
+# ------------------------
+# Python
+# ------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+
+# Bytecode compiled metadata (editable installs sometimes leave these)
+*.egg-info/
+*.dist-info/
+
+# ------------------------
+# Virtual Environments
+# ------------------------
+.venv/
+*/.venv/
+
+# ------------------------
+# Editor/Tooling
+# ------------------------
+.vscode/
+.idea/
+.sorbet/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ------------------------
+# Build / Packaging
+# ------------------------
+build/
+dist/
+
+# ------------------------
+# Game Assets and Runtime State
+# (These SHOULD NOT be versioned)
+# ------------------------
+World/saves/
+World/logs/
+World/crash_reports/
+
+# Temporary runtime exports (debugging, screenshot dumps, etc.)
+World/tmp/
+*.tmp
+
+# ------------------------
+# OS garbage
+# ------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+
+# ------------------------
+# Automation tools
+# ------------------------
+
+*.memory
+instructions.yaml
+docs/system_state/
+
+# ------------------------
+# Misc optional noise
+# ------------------------
+*.bak
+*.swp
+*.swo
+*.old
+*.orig
+*.lock

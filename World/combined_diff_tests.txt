@@ -1,0 +1,440 @@
+--- a/tests/conftest.py
++++ b/tests/conftest.py
+@@ -0,0 +1,8 @@
++from pathlib import Path
++import sys
++
++
++# Ensure project root is on sys.path for imports like `scenes` and `classes`.
++ROOT = Path(__file__).resolve().parents[1]
++if str(ROOT) not in sys.path:
++    sys.path.insert(0, str(ROOT))
+--- a/tests/test_scene_manager.py
++++ b/tests/test_scene_manager.py
+@@ -0,0 +1,72 @@
++import pygame
++from scene_manager import SceneManager
++
++
++class DummyScene:
++    def __init__(self):
++        self.updated = False
++        self.drawn = False
++        self.event_handled = False
++
++    def update(self, dt):
++        self.updated = True
++
++    def draw(self, screen):
++        self.drawn = True
++
++    def handle_event(self, event):
++        self.event_handled = True
++
++
++def test_push_and_current():
++    manager = SceneManager()
++    s1 = DummyScene()
++    manager.push(s1)
++    assert manager.current() is s1
++
++
++def test_pop_removes_scene():
++    manager = SceneManager()
++    s1 = DummyScene()
++    manager.push(s1)
++    manager.pop()
++    assert manager.current() is None
++
++
++def test_replace():
++    manager = SceneManager()
++    s1 = DummyScene()
++    s2 = DummyScene()
++    manager.push(s1)
++    manager.replace(s2)
++    assert manager.current() is s2
++
++
++def test_update_dispatch():
++    manager = SceneManager()
++    s1 = DummyScene()
++    manager.push(s1)
++    manager.update(0.016)
++    assert s1.updated
++
++
++def test_draw_dispatch():
++    pygame.display.init()
++    pygame.display.set_mode((1, 1))
++    manager = SceneManager()
++    s1 = DummyScene()
++    manager.push(s1)
++    screen = pygame.display.get_surface()
++    manager.draw(screen)
++    assert s1.drawn
++
++
++def test_event_dispatch():
++    pygame.display.init()
++    pygame.display.set_mode((1, 1))
++    event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_x)
++    manager = SceneManager()
++    s1 = DummyScene()
++    manager.push(s1)
++    manager.handle_event(event)
++    assert s1.event_handled
+--- a/tests/test_base_scene.py
++++ b/tests/test_base_scene.py
+@@ -0,0 +1,12 @@
++import pytest
++from scenes.base_scene import BaseScene
++
++
++def test_base_scene_enforces_abstract_interface():
++    scene = BaseScene()
++    with pytest.raises(NotImplementedError):
++        scene.update(0.016)
++    with pytest.raises(NotImplementedError):
++        scene.draw(None)
++    with pytest.raises(NotImplementedError):
++        scene.handle_event(None)
+--- a/tests/test_title_scene.py
++++ b/tests/test_title_scene.py
+@@ -0,0 +1,54 @@
++import os
++import pygame
++from scenes.title_scene import TitleScene
++
++
++class DummyOverworld:
++    def __init__(self, *args, **kwargs):
++        pass
++
++
++class DummyManager:
++    def __init__(self):
++        self.replaced_with = None
++
++    def replace(self, scene):
++        self.replaced_with = scene
++
++
++def _init_display():
++    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
++    pygame.init()
++    if pygame.display.get_surface() is None:
++        pygame.display.set_mode((1, 1))
++
++
++def test_title_scene_transition():
++    _init_display()
++    screen = pygame.display.get_surface()
++    manager = DummyManager()
++    scene = TitleScene(screen, manager)
++
++    event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_x)
++    # Avoid expensive overworld construction during this test.
++    import scenes.title_scene as ts
++    original_overworld = ts.OverworldScene
++    ts.OverworldScene = DummyOverworld
++    try:
++        scene.handle_event(event)
++    finally:
++        ts.OverworldScene = original_overworld
++
++    assert isinstance(manager.replaced_with, DummyOverworld)
++
++
++def test_title_scene_ignore_other_keys():
++    _init_display()
++    screen = pygame.display.get_surface()
++    manager = DummyManager()
++    scene = TitleScene(screen, manager)
++
++    event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_LEFT)
++    scene.handle_event(event)
++
++    assert manager.replaced_with is None
+--- a/tests/test_overworld_scene_smoke.py
++++ b/tests/test_overworld_scene_smoke.py
+@@ -0,0 +1,138 @@
++import os
++import pygame
++import scenes.overworld_scene as ow
++from scenes.overworld_scene import OverworldScene
++
++
++def _init_display():
++    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
++    pygame.init()
++    if pygame.display.get_surface() is None:
++        pygame.display.set_mode((1, 1))
++
++
++class DummyManager:
++    pass
++
++
++def _lightweight_overworld(monkeypatch):
++    class DummyIngester:
++        def build_index(self):
++            return self
++
++        def get_index(self):
++            return {"tile": pygame.Surface((1, 1))}
++
++    monkeypatch.setattr(ow, "Tile_Ingester", DummyIngester)
++
++    class DummyCardManager:
++        def __init__(self, *_, **__):
++            self.card_index = {}
++
++        def total_unique_cards(self):
++            return 0
++
++        def get_card_by_id(self, *_):
++            return None
++
++        def __add__(self, other):
++            return self
++
++    monkeypatch.setattr(ow, "CardManager", DummyCardManager)
++
++    class DummyArea:
++        def __init__(self, *_, **__):
++            self.inanimates = []
++            self._size = (10, 10)
++
++        def get_world_size(self):
++            return self._size
++
++        def get_inanimates(self):
++            return self.inanimates
++
++    monkeypatch.setattr(ow, "Area", DummyArea)
++
++    class DummySpriteMap:
++        def __init__(self, *_, **__):
++            pass
++
++        def get_animated_sprite(self, *_, **__):
++            return [[pygame.Surface((1, 1))]]
++
++    monkeypatch.setattr(ow, "SpriteMap", DummySpriteMap)
++
++    class DummyAnimatedSprite:
++        def __init__(self, frames):
++            self.rect = pygame.Rect(0, 0, 1, 1)
++            self.collision_rect = self.rect.copy()
++            self.sprite = pygame.Surface((1, 1))
++            self.direction = "forward"
++            self.position = (0, 0)
++
++        def update(self, *_, **__):
++            return None
++
++        def get_frame(self, *_, **__):
++            return self.sprite
++
++    monkeypatch.setattr(ow, "AnimatedSprite", DummyAnimatedSprite)
++
++    class DummyInanimate:
++        def __init__(self, surface, pos):
++            self.image = surface
++            self.rect = surface.get_rect(topleft=pos)
++            self.visual_position = pos
++
++    monkeypatch.setattr(ow, "Inanimate", DummyInanimate)
++
++    class DummySaveManager:
++        def build_state(self, **_):
++            class State:
++                player_position = (0, 0)
++                player_direction = "forward"
++                player_name = "Player"
++                area = "LAB"
++
++            return State()
++
++        def save(self, *_, **__):
++            return "save"
++
++        def load(self, *_, **__):
++            return None
++
++        def get_slot_metadata(self, slots):
++            return {slot: {"status": "Empty"} for slot in slots}
++
++    monkeypatch.setattr(ow, "SaveManager", DummySaveManager)
++    monkeypatch.setattr(OverworldScene, "_load_overworld_sprite_assets", lambda self: {})
++    monkeypatch.setattr(ow, "build_card_library", lambda *_args, **_kwargs: DummyCardManager())
++    monkeypatch.setattr(ow, "load_player_collection", lambda *_args, **_kwargs: [])
++
++
++def test_overworld_scene_constructs(monkeypatch):
++    _init_display()
++    _lightweight_overworld(monkeypatch)
++    screen = pygame.display.get_surface()
++    manager = DummyManager()
++    scene = OverworldScene(screen, manager)
++    assert scene is not None
++
++
++def test_overworld_scene_update_smoke(monkeypatch):
++    _init_display()
++    _lightweight_overworld(monkeypatch)
++    screen = pygame.display.get_surface()
++    manager = DummyManager()
++    scene = OverworldScene(screen, manager)
++    scene.update(0.016)
++
++
++def test_overworld_scene_draw_smoke(monkeypatch):
++    _init_display()
++    _lightweight_overworld(monkeypatch)
++    screen = pygame.display.get_surface()
++    manager = DummyManager()
++    scene = OverworldScene(screen, manager)
++    scene.draw(screen)
+--- a/tests/test_battle_scene_smoke.py
++++ b/tests/test_battle_scene_smoke.py
+@@ -0,0 +1,24 @@
++import os
++import pygame
++from scenes.battle_scene import BattleScene
++
++
++def _init_display():
++    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
++    pygame.init()
++    if pygame.display.get_surface() is None:
++        pygame.display.set_mode((1, 1))
++
++
++def test_battle_scene_constructs():
++    _init_display()
++    screen = pygame.display.get_surface()
++    scene = BattleScene(screen)
++    assert scene is not None
++
++
++def test_battle_scene_draw_smoke():
++    _init_display()
++    screen = pygame.display.get_surface()
++    scene = BattleScene(screen)
++    scene.draw(screen)
+--- a/tests/test_engine_import.py
++++ b/tests/test_engine_import.py
+@@ -0,0 +1,14 @@
++from pathlib import Path
++import sys
++
++
++ROOT = Path(__file__).resolve().parents[2]
++ENGINE_PATH = ROOT / "Lib" / "Engine"
++if str(ENGINE_PATH) not in sys.path:
++    sys.path.insert(0, str(ENGINE_PATH))
++
++
++def test_ptcgengine_import():
++    import ptcgengine.api as api
++    state = api.initial_state()
++    assert state is not None
+--- a/tests/test_deck.py
++++ b/tests/test_deck.py
+@@ -0,0 +1,37 @@
++import pytest
++
++from classes.card import Card
++from classes.deck import Deck
++
++
++def make_cards(count: int) -> list[Card]:
++    return [
++        Card(
++            name=f"Card {idx}",
++            card_id=f"id-{idx}",
++            supertype="Pokemon",
++            properties=[],
++            description="",
++            image="",
++        )
++        for idx in range(count)
++    ]
++
++
++def test_make_deck_with_valid_size():
++    cards = make_cards(Deck.DECK_SIZE)
++    deck = Deck(cards)
++    assert len(deck.cards) == Deck.DECK_SIZE
++
++
++def test_invalid_size_raises():
++    cards = make_cards(Deck.DECK_SIZE - 1)
++    with pytest.raises(ValueError):
++        Deck(cards)
++
++
++def test_shuffle_preserves_count():
++    cards = make_cards(Deck.DECK_SIZE)
++    deck = Deck(cards.copy())
++    deck.shuffle()
++    assert len(deck.cards) == Deck.DECK_SIZE
+--- a/pytest.ini
++++ b/pytest.ini
+@@ -0,0 +1,3 @@
++[pytest]
++testpaths = tests
++addopts = -q
+--- a/classes/deck.py
++++ b/classes/deck.py
+@@ -0,0 +1,48 @@
++from __future__ import annotations
++
++from typing import List
++import random
++
++from .card import Card
++from data.constants.deck import DECK_SIZE, MAX_REPEATING_CARDS
++
++class Deck(object):
++    """Contains only deck composition metadata (counts, shuffling)."""
++
++    # These are defined here so they can be overwritten by an inheriting class
++    #  if needed, while still using self to refer to them.
++    DECK_SIZE = DECK_SIZE
++    NUM_OF_CARDS = DECK_SIZE
++    MAX_REPEATING_CARDS = MAX_REPEATING_CARDS
++    
++    def __init__(self, cards: List[Card]):
++        self.cards = cards
++        self.verify_num_of_cards()
++
++    def verify_num_of_cards(self):
++        num_of_cards = len(self.cards)
++        if not num_of_cards == self.DECK_SIZE:
++            raise ValueError(f"Number of cards in deck: {num_of_cards}. Number required: {self.DECK_SIZE}")
++        
++    def index_deck(self):
++        card_index = {"Pokemon": [], "Energy": [], "Trainer": []}
++        for card in self.cards:
++            card_index[f"{type(card).__name__}"].append(f"{card.card_id}: {card.name}")
++        return card_index       
++                
++    def display_deck(self): 
++        index = self.index_deck()    
++        print(f"\nTotal Number of Cards in Deck: {len(self.cards)}")
++        print("---------\n")
++        for supertype in ["Pokemon", "Energy", "Trainer"]:   
++            print("=====\n")
++            print(f'  {supertype}: {len(index[supertype])}\n')
++            for card in index[supertype]:
++                print(f"    {card}")
++            print()
++        
++    def get_card_count(self, supertype: str):
++        card_index = {"Pokemon": [], "Energy": [], "Trainer": []}     
++    
++    def shuffle(self):
++        random.shuffle(self.cards)

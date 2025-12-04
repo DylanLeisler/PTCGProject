@@ -1,0 +1,16 @@
+{
+  "area": "LAB",
+  "player": {
+    "name": "Player",
+    "position": [
+      158,
+      132
+    ],
+    "direction": "right"
+  },
+  "timestamp": "2025-11-17T12:08:00.337910+00:00",
+  "collection": {
+    "owned": 14,
+    "total": 340
+  }
+}
